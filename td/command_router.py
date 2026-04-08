@@ -967,20 +967,11 @@ def h_script_exec(params: dict) -> dict:
     if not isinstance(code, str) or not code.strip():
         raise MCPError(INVALID_PARAMS, "'code' must be a non-empty string.")
 
-    # Build a namespace that includes the standard TD globals
-    namespace = {
-        "op":      op,
-        "ops":     ops,
-        "parent":  parent,
-        "project": project,
-        "absTime": absTime,
-        "ui":      ui,
-        "me":      me,
-        "td":      td,
-        "tdu":     tdu,
-        "app":     app,
-        "result":  None,
-    }
+    # Use TD's full global namespace so all operator types
+    # (sphereSOP, geometryCOMP, etc.) are available
+    import __main__
+    namespace = dict(vars(__main__))
+    namespace["result"] = None
 
     stdout_capture = io.StringIO()
     try:
