@@ -23,6 +23,16 @@ async def td_execute_script(
     TD globals.  Return values are captured via a ``result`` variable — if
     the script assigns to ``result`` that value is serialised and returned.
 
+    IMPORTANT: Scripts run on TD's main cook thread. Never use ``import time``,
+    ``time.sleep()``, or any blocking call — this will freeze TouchDesigner and
+    break the WebSocket connection. Keep scripts fast and non-blocking.
+
+    IMPORTANT: Do NOT guess TouchDesigner parameter names. Always call
+    ``td_get_parameter_info`` first to discover the exact parameter names
+    for a node before setting them in scripts. TD parameter names are often
+    abbreviated (e.g. ``radiusx`` not ``radius``, ``rough`` not ``roughness``,
+    ``resolutionw`` not ``width``).
+
     Args:
         script: Python source code to execute.  Multi-line scripts are
                 supported.  Example:

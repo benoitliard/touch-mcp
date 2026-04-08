@@ -46,6 +46,10 @@ async def td_set_parameters(
 ) -> str:
     """Set one or more parameter values on a TouchDesigner node.
 
+    IMPORTANT: Do NOT guess parameter names. Always call ``td_get_parameter_info``
+    first to discover the exact names. TD uses abbreviated names that are hard
+    to guess (e.g. ``rough`` not ``roughness``, ``radiusx`` not ``radius``).
+
     Because MCP tool parameters must be scalar types, *values* is supplied
     as a JSON string that is decoded server-side before forwarding to
     TouchDesigner.
@@ -53,7 +57,7 @@ async def td_set_parameters(
     Args:
         path: Full path of the node (e.g. "/project1/noise1").
         values: JSON string mapping parameter names to their new values.
-                Example: '{"tx": 1.0, "ty": 2.5, "Roughness": 0.8}'
+                Example: '{"tx": 1.0, "ty": 2.5, "rough": 0.8}'
                 Numeric, boolean, and string values are all supported.
 
     Returns:
