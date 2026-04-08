@@ -16,7 +16,7 @@ Claude/LLM ←── stdio (MCP) ──→ touch-mcp ←── WebSocket ──�
 The most comprehensive MCP server for TouchDesigner available. Unlike simpler alternatives, touch-mcp offers:
 
 - **Persistent WebSocket connection** — every tool call is a lightweight message, not a full HTTP round-trip
-- **29 tools** covering nodes, parameters, connections, data access, scripting, timeline, rendering, layout, and more
+- **37 tools** covering nodes, parameters, connections, data access, scripting, timeline, rendering, layout, and more
 - **Batching** — bundle multiple operations into a single round-trip with `td_batch`, critical for building complex networks fast
 - **Auto-reconnection** — survives TD restarts and network hiccups
 - **Auto-positioning** — new nodes are placed intelligently in the network editor
