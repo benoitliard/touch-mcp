@@ -96,6 +96,13 @@ class TDBridge:
         await self._open_connection()
         logger.info("TDBridge connected to %s", self._url)
 
+    async def _wait_connected(self) -> None:
+        """Poll until the bridge is connected again (used during reconnection)."""
+        while not self._connected:
+            if self._closing:
+                raise TDConnectionError("Bridge is shutting down.")
+            await asyncio.sleep(0.1)
+
     async def disconnect(self) -> None:
         """Gracefully close the WebSocket connection and cancel background tasks.
 
@@ -146,7 +153,16 @@ class TDBridge:
             TDTimeoutError: If no response is received within *timeout* seconds.
         """
         if not self._connected or self._ws is None:
-            raise TDConnectionError("Not connected to TouchDesigner.")
+            # Wait briefly for reconnection before giving up
+            if not self._closing:
+                try:
+                    await asyncio.wait_for(self._wait_connected(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    raise TDConnectionError(
+                        "Not connected to TouchDesigner. Reconnection timed out."
+                    )
+            else:
+                raise TDConnectionError("Not connected to TouchDesigner.")
 
         req_id = self._next_id
         self._next_id += 1
@@ -161,6 +177,11 @@ class TDBridge:
         except Exception as exc:
             self._pending.pop(req_id, None)
             future.cancel()
+            # Connection is dead — trigger reconnection
+            if self._connected and not self._closing:
+                self._connected = False
+                self._cancel_pending(f"Send failed: {exc}")
+                asyncio.create_task(self._reconnect(), name="td-bridge-reconnect")
             raise TDConnectionError(f"Send failed: {exc}") from exc
 
         effective_timeout = timeout if timeout is not None else self._timeout
@@ -219,6 +240,10 @@ class TDBridge:
                 self._pending.pop(req_id, None)
                 if not future.done():
                     future.cancel()
+            if self._connected and not self._closing:
+                self._connected = False
+                self._cancel_pending(f"Batch send failed: {exc}")
+                asyncio.create_task(self._reconnect(), name="td-bridge-reconnect")
             raise TDConnectionError(f"Batch send failed: {exc}") from exc
 
         effective_timeout = timeout if timeout is not None else self._timeout
