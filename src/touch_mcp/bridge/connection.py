@@ -215,7 +215,15 @@ class TDBridge:
             TDTimeoutError: If the batch response is not received in time.
         """
         if not self._connected or self._ws is None:
-            raise TDConnectionError("Not connected to TouchDesigner.")
+            if not self._closing:
+                try:
+                    await asyncio.wait_for(self._wait_connected(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    raise TDConnectionError(
+                        "Not connected to TouchDesigner. Reconnection timed out."
+                    )
+            else:
+                raise TDConnectionError("Not connected to TouchDesigner.")
 
         if not requests:
             return []
