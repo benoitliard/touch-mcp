@@ -273,10 +273,15 @@ def _json_fallback(obj):
 # I/O helpers
 # ---------------------------------------------------------------------------
 
+def _sibling(name):
+    """Resolve a sibling operator by name (works from module context)."""
+    return me.parent().op(name)
+
+
 def _log(msg: str):
     """Append a timestamped message to the sibling log Table DAT."""
     try:
-        log_dat = op("log")
+        log_dat = _sibling("log")
         if log_dat is not None:
             log_dat.appendRow([absTime.frame, msg])
     except Exception:
@@ -286,7 +291,7 @@ def _log(msg: str):
 def _send(client, payload):
     """Send *payload* (a JSON string) to *client* via the WebServer DAT."""
     try:
-        op("webserver1").webSocketSendText(client, payload)
+        _sibling("webserver1").webSocketSendText(client, payload)
     except Exception as exc:
         _log(f"Send error to {client}: {exc}")
 
