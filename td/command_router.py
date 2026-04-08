@@ -1186,12 +1186,15 @@ def h_timeline_pause(params: dict) -> dict:
 
 @handler("render.screenshot")
 def h_render_screenshot(params: dict) -> dict:
-    """Save a TOP's current frame to disk and return it as a base64-encoded PNG.
+    """Save a TOP's current frame to a PNG file on disk.
+
+    Returns the file path — does NOT return pixel data inline to avoid
+    blocking TD's main thread with large base64 payloads.
 
     Params:
         path      (str):      TOP operator path.
-        save_path (str|None): Optional filesystem path to also save the file.
-                              If omitted a temporary file is used and then deleted.
+        save_path (str|None): Filesystem path to save the PNG.
+                              If omitted, saves to a temp file in /tmp/.
     """
     path      = params.get("path")
     save_path = params.get("save_path")
@@ -1204,34 +1207,29 @@ def h_render_screenshot(params: dict) -> dict:
     import os
     import tempfile
 
-    cleanup = False
-    if save_path:
-        file_path = save_path
-    else:
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        file_path = tmp.name
-        tmp.close()
-        cleanup = True
+    if not save_path:
+        save_path = os.path.join(
+            tempfile.gettempdir(),
+            f"td_screenshot_{node.name}.png",
+        )
 
     try:
-        node.save(file_path)
-        with open(file_path, "rb") as fh:
-            raw = fh.read()
+        node.save(save_path)
     except Exception as exc:
-        raise MCPError(DATA_ACCESS_ERROR, f"Failed to save/read screenshot: {exc}")
-    finally:
-        if cleanup:
-            try:
-                os.unlink(file_path)
-            except Exception:
-                pass
+        raise MCPError(DATA_ACCESS_ERROR, f"Failed to save screenshot: {exc}")
+
+    file_size = 0
+    try:
+        file_size = os.path.getsize(save_path)
+    except Exception:
+        pass
 
     return {
         "path": node.path,
-        "savedTo": None if cleanup else file_path,
-        "encoding": "base64",
-        "mimeType": "image/png",
-        "data": base64.b64encode(raw).decode("ascii"),
+        "savedTo": save_path,
+        "fileSize": file_size,
+        "width": node.width,
+        "height": node.height,
     }
 
 

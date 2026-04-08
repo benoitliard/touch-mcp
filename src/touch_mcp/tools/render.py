@@ -12,37 +12,34 @@ from touch_mcp.server import mcp
 
 @mcp.tool()
 async def td_screenshot(
-    path: str | None = None,
-    width: int = 1920,
-    height: int = 1080,
+    path: str,
+    save_path: str | None = None,
     ctx: Context = None,
 ) -> str:
-    """Capture a screenshot of a TouchDesigner TOP or network pane.
+    """Save a TOP's current frame as a PNG file on disk.
 
-    When *path* is a TOP operator path the texture is rendered directly at the
-    requested resolution.  When *path* is a network path (COMP) the network
-    editor view for that component is captured.  Omitting *path* captures the
-    main TouchDesigner window.
+    The image is saved on the machine running TouchDesigner.
+    Returns the file path (NOT the image data) to avoid blocking TD.
 
     Args:
-        path: Full path of the TOP or COMP to capture.  Omit to screenshot
-              the main window.
-        width: Output image width in pixels (default: 1920).
-        height: Output image height in pixels (default: 1080).
+        path: Full path of the TOP to capture (e.g. "/project1/render1").
+        save_path: Optional file path to save the PNG. If omitted, saves
+                   to a temp file in /tmp/.
 
     Returns:
         JSON object with:
-        - "width": actual pixel width of the captured image.
-        - "height": actual pixel height of the captured image.
-        - "format": image encoding format (always "png").
-        - "data": base64-encoded PNG image bytes.
+        - "path": TOP operator path.
+        - "savedTo": file path where the PNG was saved.
+        - "fileSize": file size in bytes.
+        - "width": pixel width.
+        - "height": pixel height.
     """
     bridge = ctx.request_context.lifespan_context["bridge"]
     if not bridge.connected:
         raise TDConnectionError("Not connected to TouchDesigner.")
     result = await bridge.request(
         "render.screenshot",
-        {"path": path, "width": width, "height": height},
+        {"path": path, "save_path": save_path},
     )
     return json.dumps(result)
 
