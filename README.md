@@ -92,16 +92,21 @@ Create or edit `.mcp.json` in your project root:
 
 ## Available Tools
 
-29 tools organised by category.
+37 tools organised by category.
 
 ### Nodes
 
 | Tool | Description |
 |---|---|
-| `td_create_node` | Create a new operator node inside a parent container |
+| `td_create_node` | Create a new operator node (auto-positioned in the network) |
 | `td_delete_node` | Delete a node and all its children |
 | `td_list_nodes` | List child nodes under a path, optionally filtered by family |
 | `td_get_node` | Get detailed metadata for a node (type, position, connections) |
+| `td_copy_node` | Copy a node with all its parameters to a new location |
+| `td_rename_node` | Rename a node without destroying it |
+| `td_find_nodes` | Search for nodes by name, type, or family recursively |
+| `td_get_errors` | Get errors and warnings for a node (and optionally its children) |
+| `td_set_flags` | Set display, render, and/or bypass flags on a node |
 
 ### Parameters
 
@@ -110,6 +115,8 @@ Create or edit `.mcp.json` in your project root:
 | `td_get_parameters` | Read current parameter values for a node |
 | `td_set_parameters` | Set one or more parameter values on a node |
 | `td_get_parameter_info` | Get parameter schema (style, range, menu options, defaults) |
+| `td_set_expression` | Set a parameter to expression mode with a Python expression |
+| `td_pulse_parameter` | Pulse a parameter (trigger reload, reset, etc.) |
 
 ### Connections
 
@@ -124,9 +131,10 @@ Create or edit `.mcp.json` in your project root:
 | Tool | Description |
 |---|---|
 | `td_read_chop` | Read channel sample data from a CHOP node |
-| `td_read_top` | Read a TOP texture as base64-encoded image data |
+| `td_read_top` | Read TOP metadata (resolution, aspect) |
 | `td_read_sop` | Read point and primitive geometry from a SOP node |
 | `td_read_dat` | Read text or table contents from a DAT node |
+| `td_write_dat` | Write text or append rows to a DAT node |
 
 ### Scripts
 

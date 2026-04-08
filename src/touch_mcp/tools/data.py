@@ -171,3 +171,55 @@ async def td_read_dat(
         {"path": path, "rowStart": start, "rowEnd": end},
     )
     return json.dumps(result)
+
+
+@mcp.tool()
+async def td_write_dat(
+    path: str,
+    text: str | None = None,
+    append_row: str | None = None,
+    clear: bool = False,
+    ctx: Context = None,
+) -> str:
+    """Write text or table data to a DAT node.
+
+    Use this for writing scripts, GLSL shaders, configuration text, or
+    appending rows to Table DATs.  At most one of *text* or *append_row*
+    should be provided in a single call.
+
+    Args:
+        path: Full path of the DAT node (e.g. "/project1/text1").
+        text: Replace all DAT content with this string.  Intended for Text
+              DATs (scripts, GLSL, configuration).
+        append_row: JSON array string of cell values to append as a new row
+                    in a Table DAT.
+                    Example: '["Alice", "30", "engineer"]'
+        clear: If ``True``, clear the DAT contents before writing.  When
+               combined with *text* the node is cleared then filled; when
+               used alone it empties the DAT.
+
+    Returns:
+        JSON object confirming the operation with the updated row/column
+        counts where applicable.
+    """
+    bridge = ctx.request_context.lifespan_context["bridge"]
+    if not bridge.connected:
+        raise TDConnectionError("Not connected to TouchDesigner.")
+    parsed_append_row: list | None = None
+    if append_row is not None:
+        try:
+            parsed_append_row = json.loads(append_row)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"'append_row' must be a valid JSON array string. Got: {append_row!r}"
+            ) from exc
+        if not isinstance(parsed_append_row, list):
+            raise ValueError(
+                f"'append_row' must decode to a JSON array (list). "
+                f"Got type: {type(parsed_append_row).__name__}"
+            )
+    result = await bridge.request(
+        "data.dat_write",
+        {"path": path, "text": text, "appendRow": parsed_append_row, "clear": clear},
+    )
+    return json.dumps(result)

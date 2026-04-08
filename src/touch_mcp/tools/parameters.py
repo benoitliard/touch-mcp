@@ -117,3 +117,68 @@ async def td_get_parameter_info(
         {"path": path, "names": name_list},
     )
     return json.dumps(result)
+
+
+@mcp.tool()
+async def td_set_expression(
+    path: str,
+    parameter: str,
+    expression: str,
+    ctx: Context = None,
+) -> str:
+    """Set a parameter to expression mode with a Python expression.
+
+    This is the proper way to make a parameter follow a CHOP channel or
+    compute a value dynamically.  Much safer than ``td_execute_script``
+    because the expression is scoped to a single parameter and evaluated
+    within TouchDesigner's parameter engine.
+
+    Args:
+        path: Full path of the node (e.g. "/project1/circle1").
+        parameter: Parameter name to put into expression mode
+                   (e.g. "radiusx").
+        expression: Python expression string that TouchDesigner will evaluate
+                    each frame (e.g. "op('analyze')['chan1'] * 0.5").
+
+    Returns:
+        JSON object confirming the parameter path, name, and the expression
+        that was set.
+    """
+    bridge = ctx.request_context.lifespan_context["bridge"]
+    if not bridge.connected:
+        raise TDConnectionError("Not connected to TouchDesigner.")
+    result = await bridge.request(
+        "par.set_expression",
+        {"path": path, "name": parameter, "expression": expression},
+    )
+    return json.dumps(result)
+
+
+@mcp.tool()
+async def td_pulse_parameter(
+    path: str,
+    parameter: str,
+    ctx: Context = None,
+) -> str:
+    """Pulse a parameter (trigger a one-frame action).
+
+    Pulsing fires the parameter's callback exactly once — equivalent to
+    clicking a Pulse button in the TouchDesigner parameter dialog.  Common
+    uses include reload buttons, recook triggers, and reset pulses.
+
+    Args:
+        path: Full path of the node (e.g. "/project1/moviefilein1").
+        parameter: Name of the pulse parameter to trigger
+                   (e.g. "reload", "resetpulse", "initialize").
+
+    Returns:
+        JSON object confirming that the pulse was sent.
+    """
+    bridge = ctx.request_context.lifespan_context["bridge"]
+    if not bridge.connected:
+        raise TDConnectionError("Not connected to TouchDesigner.")
+    result = await bridge.request(
+        "par.pulse",
+        {"path": path, "name": parameter},
+    )
+    return json.dumps(result)

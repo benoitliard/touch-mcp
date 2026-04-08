@@ -472,6 +472,153 @@ def h_node_get(params: dict) -> dict:
     return _serialize_node(node)
 
 
+@handler("node.copy")
+def h_node_copy(params: dict) -> dict:
+    """Copy a node to a new parent.
+
+    Params:
+        sourcePath     (str):      Full path of the operator to copy.
+        destParentPath (str):      Path of the destination parent COMP.
+        name           (str|None): Name for the copy; TD assigns one if omitted.
+    """
+    source_path = params.get("sourcePath")
+    dest_parent_path = params.get("destParentPath")
+    name = params.get("name")
+    if not source_path or not dest_parent_path:
+        raise MCPError(INVALID_PARAMS, "'sourcePath' and 'destParentPath' are required.")
+    source = _resolve_op(source_path)
+    dest_parent = _resolve_op(dest_parent_path)
+    try:
+        copied = dest_parent.copy(source, name=name)
+    except Exception as exc:
+        raise MCPError(OP_CREATE_FAILED, f"Copy failed: {exc}")
+    _auto_position(copied, dest_parent)
+    return _serialize_node_brief(copied)
+
+
+@handler("node.rename")
+def h_node_rename(params: dict) -> dict:
+    """Rename a node.
+
+    Params:
+        path (str): Full path of the operator to rename.
+        name (str): New name for the operator.
+    """
+    path = params.get("path")
+    new_name = params.get("name")
+    if not path or not new_name:
+        raise MCPError(INVALID_PARAMS, "'path' and 'name' are required.")
+    node = _resolve_op(path)
+    old_name = node.name
+    try:
+        node.name = new_name
+    except Exception as exc:
+        raise MCPError(INTERNAL_ERROR, f"Rename failed: {exc}")
+    return {"oldName": old_name, "newName": node.name, "path": node.path}
+
+
+@handler("node.find")
+def h_node_find(params: dict) -> dict:
+    """Search for nodes matching criteria recursively.
+
+    Params:
+        path   (str):      Root container path to search within. Defaults to "/".
+        name   (str|None): Case-insensitive substring filter on node name.
+        type   (str|None): Exact operator type match (case-insensitive).
+        family (str|None): Operator family match (e.g. "CHOP", "TOP").
+        depth  (int):      Maximum recursion depth. Default: 5.
+    """
+    path = params.get("path", "/")
+    name_filter = params.get("name")
+    type_filter = params.get("type")
+    family_filter = params.get("family")
+    max_depth = params.get("depth", 5)
+
+    root = _resolve_op(path)
+    results = []
+
+    def _search(node, current_depth):
+        if current_depth > max_depth:
+            return
+        for child in node.children:
+            match = True
+            if name_filter and name_filter.lower() not in child.name.lower():
+                match = False
+            if type_filter and type_filter.lower() != child.type.lower():
+                match = False
+            if family_filter and family_filter.upper() != child.family:
+                match = False
+            if match:
+                results.append(_serialize_node_brief(child))
+            if hasattr(child, 'children') and current_depth < max_depth:
+                _search(child, current_depth + 1)
+
+    _search(root, 1)
+    return {"path": path, "matches": results, "count": len(results)}
+
+
+@handler("node.errors")
+def h_node_errors(params: dict) -> dict:
+    """Get errors and warnings for a node.
+
+    Params:
+        path            (str):  Full path of the operator.
+        includeChildren (bool): Also collect errors from direct children. Default: false.
+    """
+    path = params.get("path")
+    include_children = params.get("includeChildren", False)
+    if not path:
+        raise MCPError(INVALID_PARAMS, "'path' is required.")
+    node = _resolve_op(path)
+
+    def _get_errors(n):
+        return {
+            "path": n.path,
+            "errors": n.errors() if hasattr(n, 'errors') else "",
+            "warnings": n.warnings() if hasattr(n, 'warnings') else "",
+        }
+
+    result = _get_errors(node)
+    if include_children and hasattr(node, 'children'):
+        children_errors = []
+        for child in node.children:
+            ce = _get_errors(child)
+            if ce["errors"] or ce["warnings"]:
+                children_errors.append(ce)
+        result["children"] = children_errors
+    return result
+
+
+@handler("node.set_flags")
+def h_node_set_flags(params: dict) -> dict:
+    """Set display, render, and/or bypass flags on a node.
+
+    Params:
+        path    (str):       Full path of the operator.
+        display (bool|None): Set display flag if provided.
+        render  (bool|None): Set render flag if provided.
+        bypass  (bool|None): Set bypass flag if provided.
+    """
+    path = params.get("path")
+    if not path:
+        raise MCPError(INVALID_PARAMS, "'path' is required.")
+    node = _resolve_op(path)
+    updated = {}
+    try:
+        if params.get("display") is not None:
+            node.flags.display = bool(params["display"])
+            updated["display"] = node.flags.display
+        if params.get("render") is not None:
+            node.flags.render = bool(params["render"])
+            updated["render"] = node.flags.render
+        if params.get("bypass") is not None:
+            node.flags.bypass = bool(params["bypass"])
+            updated["bypass"] = node.flags.bypass
+    except Exception as exc:
+        raise MCPError(INTERNAL_ERROR, f"Failed to set flags: {exc}")
+    return {"path": path, "flags": updated}
+
+
 # ---------------------------------------------------------------------------
 # Domain: par
 # ---------------------------------------------------------------------------
@@ -596,6 +743,55 @@ def h_par_info(params: dict) -> dict:
             raise MCPError(PARAMETER_ERROR, f"Failed to enumerate parameters: {exc}")
 
     return [_serialize_par(p) for p in pars]
+
+
+@handler("par.set_expression")
+def h_par_set_expression(params: dict) -> dict:
+    """Set a parameter to expression mode with the given Python expression.
+
+    Params:
+        path       (str): Operator path.
+        name       (str): Parameter name.
+        expression (str): Python expression string to assign.
+    """
+    path = params.get("path")
+    par_name = params.get("name")
+    expression = params.get("expression")
+    if not path or not par_name or expression is None:
+        raise MCPError(INVALID_PARAMS, "'path', 'name', and 'expression' are required.")
+    node = _resolve_op(path)
+    p = getattr(node.par, par_name, None)
+    if p is None:
+        raise MCPError(PARAMETER_ERROR, f"Parameter '{par_name}' not found on '{path}'.")
+    try:
+        p.expr = expression
+        p.mode = ParMode.EXPRESSION
+    except Exception as exc:
+        raise MCPError(PARAMETER_ERROR, f"Failed to set expression: {exc}")
+    return {"path": path, "name": par_name, "expression": expression, "mode": "expression"}
+
+
+@handler("par.pulse")
+def h_par_pulse(params: dict) -> dict:
+    """Pulse a parameter (trigger a momentary activation).
+
+    Params:
+        path (str): Operator path.
+        name (str): Parameter name.
+    """
+    path = params.get("path")
+    par_name = params.get("name")
+    if not path or not par_name:
+        raise MCPError(INVALID_PARAMS, "'path' and 'name' are required.")
+    node = _resolve_op(path)
+    p = getattr(node.par, par_name, None)
+    if p is None:
+        raise MCPError(PARAMETER_ERROR, f"Parameter '{par_name}' not found on '{path}'.")
+    try:
+        p.pulse()
+    except Exception as exc:
+        raise MCPError(PARAMETER_ERROR, f"Failed to pulse: {exc}")
+    return {"path": path, "name": par_name, "pulsed": True}
 
 
 # ---------------------------------------------------------------------------
@@ -945,6 +1141,41 @@ def h_data_dat(params: dict) -> dict:
             "type": "text",
             "text": text,
         }
+
+
+@handler("data.dat_write")
+def h_data_dat_write(params: dict) -> dict:
+    """Write text or table data to a DAT operator.
+
+    Params:
+        path      (str):       DAT operator path.
+        text      (str|None):  Replace the DAT's full text content.
+        appendRow (list|None): Append a row (list of values) to a table DAT.
+        clear     (bool):      Clear the DAT before writing. Default: false.
+    """
+    path = params.get("path")
+    text = params.get("text")
+    append_row = params.get("appendRow")
+    do_clear = params.get("clear", False)
+    if not path:
+        raise MCPError(INVALID_PARAMS, "'path' is required.")
+    node = _resolve_op(path)
+    if node.family != "DAT":
+        raise MCPError(DATA_ACCESS_ERROR, f"'{path}' is not a DAT (family={node.family}).")
+    try:
+        if do_clear:
+            node.clear()
+        if text is not None:
+            node.text = text
+        if append_row is not None:
+            if not isinstance(append_row, list):
+                raise MCPError(INVALID_PARAMS, "'appendRow' must be a list.")
+            node.appendRow(append_row)
+    except MCPError:
+        raise
+    except Exception as exc:
+        raise MCPError(DATA_ACCESS_ERROR, f"Write failed: {exc}")
+    return {"path": path, "numRows": node.numRows, "numCols": node.numCols}
 
 
 # ---------------------------------------------------------------------------
