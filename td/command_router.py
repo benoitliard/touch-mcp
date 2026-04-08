@@ -203,6 +203,39 @@ def _serialize_node(node) -> dict:
     }
 
 
+_NODE_H_SPACING = 300  # horizontal gap between auto-placed nodes
+_NODE_V_SPACING = 150  # vertical gap when same family is stacked
+
+
+def _auto_position(new_node, parent_node):
+    """Place *new_node* to the right of existing siblings in the network.
+
+    Nodes of the same operator family are placed in a horizontal row.
+    Different families get stacked vertically so CHOPs, TOPs, SOPs etc.
+    form distinct visual lanes.
+    """
+    siblings = [c for c in parent_node.children if c != new_node]
+    if not siblings:
+        new_node.nodeX = 0
+        new_node.nodeY = 0
+        return
+
+    # Group siblings by family to find the right lane
+    family = new_node.family
+    same_family = [s for s in siblings if s.family == family]
+
+    if same_family:
+        # Place to the right of the rightmost same-family sibling
+        rightmost = max(same_family, key=lambda s: s.nodeX)
+        new_node.nodeX = rightmost.nodeX + _NODE_H_SPACING
+        new_node.nodeY = rightmost.nodeY
+    else:
+        # New family: place below the lowest existing node
+        lowest = max(siblings, key=lambda s: s.nodeY)
+        new_node.nodeX = 0
+        new_node.nodeY = lowest.nodeY + _NODE_V_SPACING
+
+
 def _serialize_node_brief(node) -> dict:
     """Minimal node descriptor — used for list results."""
     return {
@@ -210,6 +243,8 @@ def _serialize_node_brief(node) -> dict:
         "name": node.name,
         "type": node.type,
         "family": node.family,
+        "nodeX": node.nodeX,
+        "nodeY": node.nodeY,
     }
 
 
@@ -360,6 +395,9 @@ def h_node_create(params: dict) -> dict:
 
     if new_node is None:
         raise MCPError(OP_CREATE_FAILED, f"create() returned None for type {op_type!r}.")
+
+    # Auto-position: place to the right of the rightmost sibling
+    _auto_position(new_node, parent_node)
 
     return _serialize_node_brief(new_node)
 
