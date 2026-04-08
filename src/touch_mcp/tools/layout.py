@@ -50,7 +50,7 @@ async def td_set_node_position(positions: str, ctx: Context = None) -> str:
                 "Each position entry must be an object with 'path', 'x', and 'y' keys. "
                 f"Got: {entry!r}"
             )
-    result = await bridge.request("layout.setPositions", {"positions": parsed_positions})
+    result = await bridge.request("layout.set_position", {"nodes": parsed_positions})
     return json.dumps(result)
 
 
@@ -92,7 +92,7 @@ async def td_align_nodes(
             f"Got: {path_list!r}"
         )
     result = await bridge.request(
-        "layout.alignNodes",
+        "layout.align",
         {"paths": path_list, "direction": direction, "spacing": spacing},
     )
     return json.dumps(result)

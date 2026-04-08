@@ -40,8 +40,8 @@ async def td_execute_script(
     if not bridge.connected:
         raise TDConnectionError("Not connected to TouchDesigner.")
     result = await bridge.request(
-        "script.execute",
-        {"script": script, "contextPath": context_path},
+        "script.exec",
+        {"code": script, "contextPath": context_path},
     )
     return json.dumps(result)
 
@@ -68,7 +68,7 @@ async def td_class_list(
     if not bridge.connected:
         raise TDConnectionError("Not connected to TouchDesigner.")
     result = await bridge.request(
-        "script.classList",
+        "script.class_list",
         {"pattern": pattern},
     )
     return json.dumps(result)
@@ -97,8 +97,8 @@ async def td_class_detail(class_name: str, ctx: Context = None) -> str:
     if not bridge.connected:
         raise TDConnectionError("Not connected to TouchDesigner.")
     result = await bridge.request(
-        "script.classDetail",
-        {"className": class_name},
+        "script.class_detail",
+        {"name": class_name},
     )
     return json.dumps(result)
 
@@ -124,7 +124,7 @@ async def td_module_help(module_name: str, ctx: Context = None) -> str:
     if not bridge.connected:
         raise TDConnectionError("Not connected to TouchDesigner.")
     result = await bridge.request(
-        "script.moduleHelp",
-        {"moduleName": module_name},
+        "script.module_help",
+        {"name": module_name},
     )
     return json.dumps(result)
