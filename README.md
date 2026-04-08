@@ -13,16 +13,14 @@ Claude/LLM ←── stdio (MCP) ──→ touch-mcp ←── WebSocket ──�
 
 ## Why touch-mcp
 
-| Feature | touch-mcp | 8beeeaaat | bottobot |
-|---|---|---|---|
-| Transport | WebSocket (persistent) | HTTP (per-request) | — |
-| Live control | Yes | Partial | No |
-| Batching | Yes (`td_batch`) | No | No |
-| Tools | 29 | 13 | — |
-| Workflow | Fully automated | Automated | Copy-paste |
-| .tox component | Yes | No | No |
+The most comprehensive MCP server for TouchDesigner available. Unlike simpler alternatives, touch-mcp offers:
 
-touch-mcp maintains a persistent WebSocket connection to TouchDesigner so every tool call is a lightweight message over an already-open socket. The `td_batch` tool further reduces round-trips by bundling multiple operations into a single request — critical for building complex node networks in one shot.
+- **Persistent WebSocket connection** — every tool call is a lightweight message, not a full HTTP round-trip
+- **29 tools** covering nodes, parameters, connections, data access, scripting, timeline, rendering, layout, and more
+- **Batching** — bundle multiple operations into a single round-trip with `td_batch`, critical for building complex networks fast
+- **Auto-reconnection** — survives TD restarts and network hiccups
+- **Auto-positioning** — new nodes are placed intelligently in the network editor
+- **Full Python access** — execute arbitrary Python inside TD with `td_execute_script`, with access to all operator types and globals
 
 ---
 
@@ -37,7 +35,7 @@ pip install touch-mcp
 Or from source:
 
 ```bash
-git clone https://github.com/yourusername/touch-mcp.git
+git clone https://github.com/benoitliard/touch-mcp.git
 cd touch-mcp
 pip install -e ".[dev]"
 ```
@@ -152,7 +150,7 @@ Create or edit `.mcp.json` in your project root:
 
 | Tool | Description |
 |---|---|
-| `td_screenshot` | Capture a TOP texture or network editor view as PNG |
+| `td_screenshot` | Save a TOP's current frame as a PNG file on disk |
 | `td_export_render` | Export a rendered TOP frame to a file on disk |
 
 ### Project
@@ -194,7 +192,7 @@ Options:
 ## Development
 
 ```bash
-git clone https://github.com/yourusername/touch-mcp.git
+git clone https://github.com/benoitliard/touch-mcp.git
 cd touch-mcp
 pip install -e ".[dev]"
 pytest
