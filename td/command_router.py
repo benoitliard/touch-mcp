@@ -100,23 +100,21 @@ def process_request(client, data: str):
     try:
         payload = json.loads(data)
     except json.JSONDecodeError as exc:
-        _send(client, _error_envelope(None, PARSE_ERROR, f"Invalid JSON: {exc}"))
+        _send(client, json.dumps(_error_envelope(None, PARSE_ERROR, f"Invalid JSON: {exc}")))
         return
 
     if isinstance(payload, list):
         # Batch request
-        responses = []
-        for item in payload:
-            responses.append(_dispatch_single(item))
-        _send(client, json.dumps(responses))
+        responses = [_dispatch_single(item) for item in payload]
+        _send(client, json.dumps(responses, default=_json_fallback))
     elif isinstance(payload, dict):
-        _send(client, _dispatch_single(payload))
+        _send(client, json.dumps(_dispatch_single(payload), default=_json_fallback))
     else:
-        _send(client, _error_envelope(None, INVALID_REQUEST, "Request must be an object or array."))
+        _send(client, json.dumps(_error_envelope(None, INVALID_REQUEST, "Request must be an object or array.")))
 
 
-def _dispatch_single(request: dict) -> str:
-    """Dispatch one request object; always returns a JSON string."""
+def _dispatch_single(request: dict) -> dict:
+    """Dispatch one request object; returns a response dict."""
     req_id  = request.get("id")
     method  = request.get("method")
     params  = request.get("params", {})
@@ -133,7 +131,7 @@ def _dispatch_single(request: dict) -> str:
 
     try:
         result = handler_fn(params)
-        return json.dumps({"id": req_id, "ok": True, "result": result}, default=_json_fallback)
+        return {"id": req_id, "ok": True, "result": result}
     except MCPError as exc:
         return _error_envelope(req_id, exc.code, exc.message)
     except Exception as exc:
@@ -142,8 +140,8 @@ def _dispatch_single(request: dict) -> str:
         return _error_envelope(req_id, INTERNAL_ERROR, f"Unhandled exception: {exc}")
 
 
-def _error_envelope(req_id, code: str, message: str) -> str:
-    return json.dumps({"id": req_id, "ok": False, "error": {"code": code, "message": message}})
+def _error_envelope(req_id, code: str, message: str) -> dict:
+    return {"id": req_id, "ok": False, "error": {"code": code, "message": message}}
 
 
 # ---------------------------------------------------------------------------
