@@ -59,21 +59,27 @@ async def td_delete_connection(
     output_index: int | None = None,
     ctx: Context = None,
 ) -> str:
-    """Disconnect a node's input or output connector.
+    """Disconnect a wire from a node's input or output connector.
 
-    Supply *input_index* to sever the wire arriving at that input, or
-    *output_index* to sever all wires leaving that output.  At least one of
-    the two index arguments must be provided.
+    This operates on a SINGLE node — specify the destination node's path
+    and which connector index to disconnect. To find the correct index,
+    call ``td_get_connections`` first.
+
+    Examples:
+        Disconnect input 0 of /project1/filter1:
+            td_delete_connection(path="/project1/filter1", input_index=0)
+        Disconnect output 0 of /project1/noise1:
+            td_delete_connection(path="/project1/noise1", output_index=0)
 
     Args:
-        path: Full path of the node whose connection should be removed.
-        input_index: Zero-based index of the input connector to disconnect.
-                     Omit if disconnecting an output.
-        output_index: Zero-based index of the output connector to disconnect.
-                      Omit if disconnecting an input.
+        path: Full path of the node to disconnect (e.g. "/project1/filter1").
+        input_index: Zero-based input connector index to disconnect.
+                     Use this to remove an incoming wire.
+        output_index: Zero-based output connector index to disconnect.
+                      Use this to remove an outgoing wire.
 
     Returns:
-        JSON object confirming which connectors were disconnected.
+        JSON object confirming which connector was disconnected.
     """
     bridge = ctx.request_context.lifespan_context["bridge"]
     if not bridge.connected:
